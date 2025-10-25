@@ -1,12 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Heart } from "lucide-react"
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { auth, db } from "@/lib/firebase"
+import { doc, setDoc } from "firebase/firestore"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -18,6 +21,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const router = useRouter()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -43,17 +47,56 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log("Signup attempt:", {
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+
+      // Store user data in Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
         fullName: formData.fullName,
         email: formData.email,
+        createdAt: new Date(),
+        moodLogs: [],
+        journalEntries: [],
+        selfCareActivities: [],
       })
+
       setSuccess(true)
       setFormData({ fullName: "", email: "", password: "", confirmPassword: "" })
-      // In a real app, you would create the account here
-    } catch (err) {
-      setError("Failed to create account. Please try again.")
+
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 2000)
+    } catch (err: any) {
+      setError(err.message || "Failed to create account. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignUp = async () => {
+    setError("")
+    setIsLoading(true)
+    try {
+      const provider = new GoogleAuthProvider()
+      const userCredential = await signInWithPopup(auth, provider)
+
+      // Create user document in Firestore
+      await setDoc(
+        doc(db, "users", userCredential.user.uid),
+        {
+          fullName: userCredential.user.displayName || "",
+          email: userCredential.user.email,
+          createdAt: new Date(),
+          moodLogs: [],
+          journalEntries: [],
+          selfCareActivities: [],
+        },
+        { merge: true },
+      )
+
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up with Google")
     } finally {
       setIsLoading(false)
     }
@@ -189,7 +232,13 @@ export default function SignupPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="border-border bg-transparent">
+              <Button
+                type="button"
+                onClick={handleGoogleSignUp}
+                disabled={isLoading}
+                variant="outline"
+                className="border-border bg-transparent"
+              >
                 Google
               </Button>
               <Button variant="outline" className="border-border bg-transparent">

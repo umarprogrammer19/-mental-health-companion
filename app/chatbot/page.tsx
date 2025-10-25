@@ -5,6 +5,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Heart, Brain, LogOut, Menu, X, Send, Mic, Paperclip } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 interface Message {
   id: string
@@ -24,7 +26,10 @@ export default function ChatbotPage() {
     },
   ])
   const [inputValue, setInputValue] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -34,7 +39,7 @@ export default function ChatbotPage() {
     scrollToBottom()
   }, [messages])
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
     const userMessage: Message = {
@@ -46,17 +51,57 @@ export default function ChatbotPage() {
 
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
+    setIsLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/gemini/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: inputValue,
+          conversationHistory: messages,
+        }),
+      })
+
+      const data = await response.json()
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "That's a great insight. Let's explore this further. Can you tell me more about what triggered these feelings?",
+        text: data.text || "I'm here to listen. Can you tell me more?",
         sender: "ai",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMessage])
-    }, 1000)
+    } catch (error) {
+      console.error("Error:", error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble responding right now. Please try again.",
+        sender: "ai",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleVoiceInput = async () => {
+    try {
+      const recognition = new (window as any).webkitSpeechRecognition()
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript
+        setInputValue(transcript)
+      }
+      recognition.start()
+    } catch (error) {
+      console.error("Voice input error:", error)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
   }
 
   return (
@@ -75,9 +120,9 @@ export default function ChatbotPage() {
           </button>
           <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="sm">
-              Profile
+              {user?.email}
             </Button>
-            <Button variant="ghost" size="sm" className="text-destructive">
+            <Button onClick={handleLogout} variant="ghost" size="sm" className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -149,6 +194,23 @@ export default function ChatbotPage() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-muted text-foreground rounded-lg rounded-bl-none px-4 py-3">
+                  <div className="flex gap-2">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                    <div
+                      className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                      style={{ animationDelay: "0.4s" }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -168,16 +230,22 @@ export default function ChatbotPage() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                disabled={isLoading}
                 className="flex-1 bg-input border-border text-foreground placeholder:text-muted-foreground"
               />
               <Button
                 variant="outline"
                 size="icon"
+                onClick={handleVoiceInput}
                 className="border-border text-muted-foreground hover:bg-muted bg-transparent"
               >
                 <Mic className="w-5 h-5" />
               </Button>
-              <Button onClick={handleSendMessage} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button
+                onClick={handleSendMessage}
+                disabled={isLoading}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
                 <Send className="w-5 h-5" />
               </Button>
             </div>

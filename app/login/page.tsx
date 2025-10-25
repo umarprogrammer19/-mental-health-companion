@@ -1,18 +1,21 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Heart } from "lucide-react"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,12 +23,24 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log("Login attempt:", { email, password })
-      // In a real app, you would authenticate here
-    } catch (err) {
-      setError("Failed to log in. Please try again.")
+      await signInWithEmailAndPassword(auth, email, password)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Failed to log in. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError("")
+    setIsLoading(true)
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Google")
     } finally {
       setIsLoading(false)
     }
@@ -116,7 +131,13 @@ export default function LoginPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="border-border bg-transparent">
+              <Button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+                variant="outline"
+                className="border-border bg-transparent"
+              >
                 Google
               </Button>
               <Button variant="outline" className="border-border bg-transparent">

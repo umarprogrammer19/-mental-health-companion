@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Heart, Brain, Leaf, TrendingUp, BookOpen, LogOut, Menu, X } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 const moodData = [
   { date: "Mon", mood: 6 },
@@ -27,6 +29,11 @@ const selfCareData = [
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
+  const [aiInsight, setAiInsight] = useState("")
+  const [recommendations, setRecommendations] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
   const moods = [
     { emoji: "😊", label: "Happy", value: "happy", color: "bg-yellow-100 border-yellow-300" },
@@ -36,6 +43,57 @@ export default function DashboardPage() {
     { emoji: "😤", label: "Frustrated", value: "frustrated", color: "bg-red-100 border-red-300" },
     { emoji: "😴", label: "Tired", value: "tired", color: "bg-purple-100 border-purple-300" },
   ]
+
+  const handleMoodSelect = async (moodValue: string) => {
+    setSelectedMood(moodValue)
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/gemini/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mood: moodValue,
+          recentMoods: moodData,
+        }),
+      })
+
+      const data = await response.json()
+      setRecommendations(data.recommendations || [])
+    } catch (error) {
+      console.error("Error fetching recommendations:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSaveMood = async () => {
+    if (!selectedMood) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/gemini/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `I'm feeling ${selectedMood} today. Can you provide a brief insight about this mood and how to manage it?`,
+          conversationHistory: [],
+        }),
+      })
+
+      const data = await response.json()
+      setAiInsight(data.text || "Keep taking care of yourself!")
+    } catch (error) {
+      console.error("Error:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,9 +111,9 @@ export default function DashboardPage() {
           </button>
           <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="sm">
-              Profile
+              {user?.email}
             </Button>
-            <Button variant="ghost" size="sm" className="text-destructive">
+            <Button onClick={handleLogout} variant="ghost" size="sm" className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -111,7 +169,7 @@ export default function DashboardPage() {
         <main className="flex-1 p-6 md:p-8 max-w-6xl mx-auto w-full">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back, Sarah</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back, {user?.displayName || "User"}</h1>
             <p className="text-muted-foreground">How are you feeling today?</p>
           </div>
 
@@ -122,7 +180,7 @@ export default function DashboardPage() {
               {moods.map((mood) => (
                 <button
                   key={mood.value}
-                  onClick={() => setSelectedMood(mood.value)}
+                  onClick={() => handleMoodSelect(mood.value)}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     selectedMood === mood.value
                       ? `${mood.color} border-current scale-105`
@@ -135,7 +193,13 @@ export default function DashboardPage() {
               ))}
             </div>
             {selectedMood && (
-              <Button className="mt-6 bg-primary hover:bg-primary/90 w-full md:w-auto">Save Mood</Button>
+              <Button
+                onClick={handleSaveMood}
+                disabled={isLoading}
+                className="mt-6 bg-primary hover:bg-primary/90 w-full md:w-auto"
+              >
+                {isLoading ? "Analyzing..." : "Save Mood"}
+              </Button>
             )}
           </Card>
 
@@ -150,8 +214,8 @@ export default function DashboardPage() {
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">AI Insights</h3>
                   <p className="text-sm text-muted-foreground">
-                    Your mood has been improving this week! Keep up with your self-care routine and consider trying
-                    meditation for better stress management.
+                    {aiInsight ||
+                      "Your mood has been improving this week! Keep up with your self-care routine and consider trying meditation for better stress management."}
                   </p>
                   <Link href="/chatbot">
                     <Button
@@ -175,8 +239,9 @@ export default function DashboardPage() {
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">Today's Recommendation</h3>
                   <p className="text-sm text-muted-foreground">
-                    Based on your mood, we recommend a 10-minute meditation session. It can help reduce anxiety and
-                    improve focus.
+                    {recommendations.length > 0
+                      ? recommendations[0].description
+                      : "Based on your mood, we recommend a 10-minute meditation session. It can help reduce anxiety and improve focus."}
                   </p>
                   <Link href="/self-care">
                     <Button

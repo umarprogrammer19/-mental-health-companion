@@ -5,17 +5,30 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Heart, Brain, Leaf, TrendingUp, BookOpen, LogOut, Menu, X, Save } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
+
+interface JournalEntry {
+  id: string
+  date: string
+  title: string
+  content: string
+  sentiment: "positive" | "negative" | "neutral"
+  sentimentScore?: number
+}
 
 export default function JournalPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [journalEntry, setJournalEntry] = useState("")
-  const [entries, setEntries] = useState([
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [entries, setEntries] = useState<JournalEntry[]>([
     {
       id: "1",
       date: "Today",
       title: "Feeling Grateful",
       content: "Had a great day today. Completed my meditation and went for a walk. Feeling more positive.",
       sentiment: "positive",
+      sentimentScore: 0.85,
     },
     {
       id: "2",
@@ -23,22 +36,54 @@ export default function JournalPage() {
       title: "Challenging Day",
       content: "Work was stressful, but I managed to stay calm using the breathing techniques.",
       sentiment: "neutral",
+      sentimentScore: 0.5,
     },
   ])
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
-  const handleSaveEntry = () => {
+  const handleSaveEntry = async () => {
     if (!journalEntry.trim()) return
 
-    const newEntry = {
-      id: Date.now().toString(),
-      date: "Today",
-      title: journalEntry.split("\n")[0].substring(0, 50),
-      content: journalEntry,
-      sentiment: "neutral" as const,
-    }
+    setIsAnalyzing(true)
 
-    setEntries((prev) => [newEntry, ...prev])
-    setJournalEntry("")
+    try {
+      // Analyze sentiment using Gemini
+      const sentimentResponse = await fetch("/api/gemini/sentiment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: journalEntry }),
+      })
+
+      const sentimentData = await sentimentResponse.json()
+
+      const newEntry: JournalEntry = {
+        id: Date.now().toString(),
+        date: "Today",
+        title: journalEntry.split("\n")[0].substring(0, 50),
+        content: journalEntry,
+        sentiment: sentimentData.sentiment || "neutral",
+        sentimentScore: sentimentData.score || 0.5,
+      }
+
+      setEntries((prev) => [newEntry, ...prev])
+      setJournalEntry("")
+    } catch (error) {
+      console.error("Error analyzing sentiment:", error)
+      // Fallback to neutral if analysis fails
+      const newEntry: JournalEntry = {
+        id: Date.now().toString(),
+        date: "Today",
+        title: journalEntry.split("\n")[0].substring(0, 50),
+        content: journalEntry,
+        sentiment: "neutral",
+        sentimentScore: 0.5,
+      }
+      setEntries((prev) => [newEntry, ...prev])
+      setJournalEntry("")
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   const getSentimentColor = (sentiment: string) => {
@@ -50,6 +95,11 @@ export default function JournalPage() {
       default:
         return "bg-blue-100 text-blue-800 border-blue-300"
     }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
   }
 
   return (
@@ -68,9 +118,9 @@ export default function JournalPage() {
           </button>
           <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="sm">
-              Profile
+              {user?.email}
             </Button>
-            <Button variant="ghost" size="sm" className="text-destructive">
+            <Button onClick={handleLogout} variant="ghost" size="sm" className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -137,12 +187,17 @@ export default function JournalPage() {
               value={journalEntry}
               onChange={(e) => setJournalEntry(e.target.value)}
               placeholder="Write your thoughts and feelings here..."
-              className="w-full h-48 p-4 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={isAnalyzing}
+              className="w-full h-48 p-4 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
             <div className="flex gap-3 mt-4">
-              <Button onClick={handleSaveEntry} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button
+                onClick={handleSaveEntry}
+                disabled={isAnalyzing}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
                 <Save className="w-4 h-4 mr-2" />
-                Save Entry
+                {isAnalyzing ? "Analyzing..." : "Save Entry"}
               </Button>
               <Button variant="outline" className="border-border text-foreground hover:bg-muted bg-transparent">
                 Cancel

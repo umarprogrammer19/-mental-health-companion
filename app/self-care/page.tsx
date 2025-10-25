@@ -5,6 +5,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Heart, Brain, Leaf, TrendingUp, LogOut, Menu, X, CheckCircle2, Circle, BookOpen } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 interface Activity {
   id: string
@@ -17,6 +19,7 @@ interface Activity {
 
 export default function SelfCarePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState("All")
   const [activities, setActivities] = useState<Activity[]>([
     {
       id: "1",
@@ -67,6 +70,8 @@ export default function SelfCarePage() {
       completed: false,
     },
   ])
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
   const toggleActivity = (id: string) => {
     setActivities((prev) =>
@@ -78,6 +83,14 @@ export default function SelfCarePage() {
   const completionPercentage = Math.round((completedCount / activities.length) * 100)
 
   const categories = ["All", "Mindfulness", "Reflection", "Exercise", "Outdoor", "Creativity", "Social"]
+
+  const filteredActivities =
+    selectedCategory === "All" ? activities : activities.filter((a) => a.category === selectedCategory)
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -95,9 +108,9 @@ export default function SelfCarePage() {
           </button>
           <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="sm">
-              Profile
+              {user?.email}
             </Button>
-            <Button variant="ghost" size="sm" className="text-destructive">
+            <Button onClick={handleLogout} variant="ghost" size="sm" className="text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -179,9 +192,14 @@ export default function SelfCarePage() {
             {categories.map((category) => (
               <Button
                 key={category}
-                variant="outline"
+                onClick={() => setSelectedCategory(category)}
+                variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
-                className="border-border text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary bg-transparent"
+                className={
+                  selectedCategory === category
+                    ? "bg-primary text-primary-foreground"
+                    : "border-border text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary bg-transparent"
+                }
               >
                 {category}
               </Button>
@@ -190,7 +208,7 @@ export default function SelfCarePage() {
 
           {/* Activities Grid */}
           <div className="grid md:grid-cols-2 gap-6">
-            {activities.map((activity) => (
+            {filteredActivities.map((activity) => (
               <Card
                 key={activity.id}
                 className={`p-6 border transition-all cursor-pointer ${

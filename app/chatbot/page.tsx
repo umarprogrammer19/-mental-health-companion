@@ -54,16 +54,25 @@ export default function ChatbotPage() {
     setIsLoading(true)
 
     try {
+      const conversationHistory = messages.map((msg) => ({
+        text: msg.text,
+        sender: msg.sender,
+      }))
+
       const response = await fetch("/api/gemini/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: inputValue,
-          conversationHistory: messages,
+          conversationHistory: conversationHistory,
         }),
       })
 
       const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),

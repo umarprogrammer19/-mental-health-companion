@@ -8,16 +8,16 @@ Thank you for considering contributing to this project! We welcome contributions
    - Go to the repository page and click on the "Fork" button to make a copy of the repo in your own GitHub account.
 
 2. **Clone your fork locally**:
-   ```bash
+   \`\`\`bash
    git clone https://github.com/your-username/mental-health-app.git
    cd mental-health-app
-   ```
+   \`\`\`
 
 3. **Create a new branch**:
    - Create a new branch for your changes:
-     ```bash
+     \`\`\`bash
      git checkout -b feature-name
-     ```
+     \`\`\`
 
 4. **Make changes**:
    - Implement your changes or fixes in the code.
@@ -27,16 +27,15 @@ Thank you for considering contributing to this project! We welcome contributions
 
 6. **Commit changes**:
    - After making changes, commit your work:
-     ```bash
+     \`\`\`bash
      git commit -am 'Add new feature or fix bug'
-     ```
+     \`\`\`
 
 7. **Push changes to GitHub**:
    - Push your branch to your fork:
-     ```bash
+     \`\`\`bash
      git push origin feature-name
-     ```
+     \`\`\`
 
 8. **Submit a pull request**:
    - Go to your fork on GitHub and click the "Compare & Pull Request" button to submit your changes.
-

@@ -9,11 +9,16 @@ export async function POST(request: Request) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
     const history = conversationHistory
-      .filter((msg: any) => msg && msg.text) // Filter out undefined messages
+      .filter((msg: any) => msg && msg.text && msg.sender) // Filter out undefined/invalid messages
       .map((msg: any) => ({
         role: msg.sender === "user" ? "user" : "model",
         parts: [{ text: msg.text }],
       }))
+      .filter((msg: any, index: number) => {
+        // Ensure first message in history is from user
+        if (index === 0) return msg.role === "user"
+        return true
+      })
 
     const chat = model.startChat({
       history: history,

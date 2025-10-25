@@ -17,14 +17,7 @@ interface Message {
 
 export default function ChatbotPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Hello! I'm your AI therapy companion. I'm here to provide emotional support and CBT exercises. How are you feeling today?",
-      sender: "ai",
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -187,6 +180,16 @@ export default function ChatbotPage() {
         <main className="flex-1 flex flex-col h-[calc(100vh-73px)]">
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {messages.length === 0 && (
+              <div className="flex justify-start">
+                <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-lg bg-muted text-foreground rounded-bl-none">
+                  <p className="text-sm">
+                    Hello! I'm your AI therapy companion. I'm here to provide emotional support and CBT exercises. How
+                    are you feeling today?
+                  </p>
+                </div>
+              </div>
+            )}
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
                 <div

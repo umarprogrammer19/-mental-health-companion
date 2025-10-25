@@ -106,3 +106,4 @@ We welcome contributions to improve the app! If you would like to contribute, pl
    ```
 7. Submit a pull request to the `main` branch of the original repository.
 
+This project is licensed under the [MIT License](./LICENSE).

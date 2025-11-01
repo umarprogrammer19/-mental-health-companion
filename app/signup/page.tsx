@@ -11,6 +11,7 @@ import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } f
 import { auth, db } from "@/lib/firebase"
 import { doc, setDoc } from "firebase/firestore"
 
+// Main signup component
 export default function SignupPage() {
   const [formData, setFormData] = useState({
     fullName: "",
